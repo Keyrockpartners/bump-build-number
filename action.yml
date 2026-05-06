@@ -1,0 +1,62 @@
+name: Persistent Build Number
+
+description: >-
+  Allocate stable build numbers per key using a JSON file stored on a branch
+  in the current repository.
+
+inputs:
+  key:
+    description: >-
+      Stable key to look up, such as a commit SHA, tag, or release identifier.
+      If the key already exists, its existing build number is returned.
+    required: true
+  branch:
+    description: Branch used to store the build-number JSON file.
+    required: false
+    default: build-numbers
+  file:
+    description: Path to the JSON file on the storage branch.
+    required: false
+    default: build-numbers.json
+  github-token:
+    description: Token with contents:write permission for this repository.
+    required: true
+    default: ${{ github.token }}
+  committer-name:
+    description: Name used for commits to the storage branch.
+    required: false
+    default: github-actions[bot]
+  committer-email:
+    description: Email used for commits to the storage branch.
+    required: false
+    default: 41898282+github-actions[bot]@users.noreply.github.com
+  max-attempts:
+    description: Maximum push-retry attempts when concurrent jobs update the branch.
+    required: false
+    default: "10"
+
+outputs:
+  build-number:
+    description: The existing or newly allocated build number for the key.
+    value: ${{ steps.build-number.outputs.build-number }}
+  number:
+    description: Alias for build-number.
+    value: ${{ steps.build-number.outputs.number }}
+  existed:
+    description: "true if the key already existed; false if this run allocated it."
+    value: ${{ steps.build-number.outputs.existed }}
+
+runs:
+  using: composite
+  steps:
+    - id: build-number
+      shell: bash
+      env:
+        INPUT_KEY: ${{ inputs.key }}
+        INPUT_BRANCH: ${{ inputs.branch }}
+        INPUT_FILE: ${{ inputs.file }}
+        INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
+        INPUT_COMMITTER_NAME: ${{ inputs.committer-name }}
+        INPUT_COMMITTER_EMAIL: ${{ inputs.committer-email }}
+        INPUT_MAX_ATTEMPTS: ${{ inputs.max-attempts }}
+      run: bash "${GITHUB_ACTION_PATH}/scripts/build-number.sh"
