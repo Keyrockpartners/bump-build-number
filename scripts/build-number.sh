@@ -44,7 +44,7 @@ AUTH_HEADER="$(printf 'x-access-token:%s' "$TOKEN" | base64 | tr -d '\n')"
 echo "::add-mask::${AUTH_HEADER}"
 
 REPO_URL="${SERVER_URL%/}/${REPOSITORY}.git"
-WORK_DIR="$(mktemp -d)"
+WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/build-number-action.XXXXXX")"
 trap 'rm -rf "$WORK_DIR"' EXIT
 
 cd "$WORK_DIR"
@@ -167,7 +167,8 @@ print(f"created\t{number}")
 PY
 }
 
-for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
+attempt=1
+while [[ "$attempt" -le "$MAX_ATTEMPTS" ]]; do
   echo "build-number-action: attempt ${attempt}/${MAX_ATTEMPTS}"
   prepare_storage_branch
 
@@ -188,6 +189,7 @@ for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
   if git diff --cached --quiet; then
     # Defensive fallback: if no file changed, retry. This should not normally happen.
     sleep 1
+    attempt=$((attempt + 1))
     continue
   fi
 
@@ -200,6 +202,7 @@ for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
 
   echo "build-number-action: push failed, another job may have updated ${BRANCH}; retrying" >&2
   sleep "$(( attempt < 5 ? attempt : 5 ))"
+  attempt=$((attempt + 1))
 done
 
 fail "could not update ${BRANCH} after ${MAX_ATTEMPTS} attempts"
